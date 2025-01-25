@@ -12,12 +12,17 @@ const { ActivityTypes } = require('../util/Constants');
  * @see {@link https://luna.gitlab.io/discord-unofficial-docs/user_settings.html}
  */
 class ClientUserSettingManager extends BaseManager {
-  #rawSetting = {};
   constructor(client) {
     super(client);
     /**
-     * WHO CAN ADD YOU AS A FRIEND ?
-     * @type {?object}
+     * Internal storage for raw settings data.
+     * @type {Object}
+     */
+    this._rawSetting = {}; // Changed from private to public field for compatibility.
+
+    /**
+     * WHO CAN ADD YOU AS A FRIEND?
+     * @type {?Object}
      * @see {@link https://luna.gitlab.io/discord-unofficial-docs/user_settings.html#friend-source-flags-structure}
      */
     this.addFriendFrom = {
@@ -26,154 +31,65 @@ class ClientUserSettingManager extends BaseManager {
       mutual_guilds: null,
     };
   }
+
   /**
    * Patch data file
-   * https://luna.gitlab.io/discord-unofficial-docs/docs/user_settings
+   * @param {Object} data Raw data to patch
    * @private
-   * @param {Object} data Raw Data to patch
    */
   _patch(data = {}) {
-    this.#rawSetting = Object.assign(this.#rawSetting, data);
+    this._rawSetting = Object.assign(this._rawSetting, data);
     this.client.emit('debug', `[SETTING > ClientUser] Sync setting`);
+
     if ('locale' in data) {
-      /**
-       * The user's chosen language option
-       * @type {?string}
-       * @see {@link https://discord.com/developers/docs/reference#locales}
-       */
       this.locale = data.locale;
     }
     if ('show_current_game' in data) {
-      /**
-       * Show playing status for detected/added games
-       * <info>Setting => ACTIVITY SETTINGS => Activity Status => Display current activity as a status message</info>
-       * @type {?boolean}
-       */
       this.activityDisplay = data.show_current_game;
     }
     if ('default_guilds_restricted' in data) {
-      /**
-       * Allow DMs from guild members by default on guild join
-       * @type {?boolean}
-       */
       this.allowDMsFromGuild = data.default_guilds_restricted;
     }
     if ('inline_attachment_media' in data) {
-      /**
-       * Display images and video when uploaded directly
-       * @type {?boolean}
-       */
       this.displayImage = data.inline_attachment_media;
     }
     if ('inline_embed_media' in data) {
-      /**
-       * Display images and video when linked
-       * @type {?boolean}
-       */
       this.linkedImageDisplay = data.inline_embed_media;
     }
     if ('gif_auto_play' in data) {
-      /**
-       * Play GIFs without hovering over them
-       * <info>Setting => APP SETTINGS => Accessibility => Automatically play GIFs when Discord is focused.</info>
-       * @type {?boolean}
-       */
       this.autoplayGIF = data.gif_auto_play;
     }
     if ('render_embeds' in data) {
-      /**
-       * Show embeds and preview website links pasted into chat
-       * @type {?boolean}
-       */
       this.previewLink = data.render_embeds;
     }
     if ('animate_emoji' in data) {
-      /**
-       * Play animated emoji without hovering over them
-       * <info>Setting => APP SETTINGS => Accessibility => Play Animated Emojis</info>
-       * @type {?boolean}
-       */
       this.animatedEmoji = data.animate_emoji;
     }
     if ('enable_tts_command' in data) {
-      /**
-       * Enable /tts command and playback
-       * <info>Setting => APP SETTINGS => Accessibility => Text-to-speech => Allow playback</info>
-       * @type {?boolean}
-       */
       this.allowTTS = data.enable_tts_command;
     }
     if ('message_display_compact' in data) {
-      /**
-       * Use compact mode
-       * <info>Setting => APP SETTINGS => Appearance => Message Display => Compact Mode</info>
-       * @type {?boolean}
-       */
       this.compactMode = data.message_display_compact;
     }
     if ('convert_emoticons' in data) {
-      /**
-       * Convert "old fashioned" emoticons to emojis
-       * <info>Setting => APP SETTINGS => Text & Images => Emoji => Convert Emoticons</info>
-       * @type {?boolean}
-       */
       this.convertEmoticons = data.convert_emoticons;
     }
     if ('explicit_content_filter' in data) {
-      /**
-       * Content filter level
-       * <info>
-       * * `0`: Off
-       * * `1`: Friends excluded
-       * * `2`: Scan everyone
-       * </info>
-       * @type {?number}
-       */
       this.DMScanLevel = data.explicit_content_filter;
     }
     if ('theme' in data) {
-      /**
-       * Client theme
-       * <info>Setting => APP SETTINGS => Appearance => Theme
-       * * `dark`
-       * * `light`
-       * </info>
-       * @type {?string}
-       */
       this.theme = data.theme;
     }
     if ('developer_mode' in data) {
-      /**
-       * Show the option to copy ids in right click menus
-       * @type {?boolean}
-       */
       this.developerMode = data.developer_mode;
     }
     if ('afk_timeout' in data) {
-      /**
-       * How many seconds being idle before the user is marked as "AFK"; this handles when push notifications are sent
-       * @type {?number}
-       */
       this.afkTimeout = data.afk_timeout;
     }
     if ('animate_stickers' in data) {
-      /**
-       * When stickers animate
-       * <info>
-       * * `0`: Always
-       * * `1`: On hover/focus
-       * * `2`: Never
-       * </info>
-       * @type {?number}
-       */
       this.stickerAnimationMode = data.animate_stickers;
     }
     if ('render_reactions' in data) {
-      /**
-       * Display reactions
-       * <info>Setting => APP SETTINGS => Text & Images => Emoji => Show emoji reactions</info>
-       * @type {?boolean}
-       */
       this.showEmojiReactions = data.render_reactions;
     }
     if ('status' in data) {
@@ -204,25 +120,22 @@ class ClientUserSettingManager extends BaseManager {
       this.client.user.setPresence({ activities });
     }
     if ('friend_source_flags' in data) {
-      // Todo
+      const friendSourceFlags = data.friend_source_flags || {};
+      this.addFriendFrom = {
+        all: friendSourceFlags.all || false,
+        mutual_friends: friendSourceFlags.mutual_friends || false,
+        mutual_guilds: friendSourceFlags.mutual_guilds || false,
+      };
     }
     if ('restricted_guilds' in data) {
-      /**
-       * Disable Direct Message from servers
-       * @type {Collection<Snowflake, Guild>}
-       */
       this.disableDMfromGuilds = new Collection(
         data.restricted_guilds.map(guildId => [guildId, this.client.guilds.cache.get(guildId)]),
       );
     }
   }
 
-  /**
-   * Raw data
-   * @type {Object}
-   */
   get raw() {
-    return this.#rawSetting;
+    return this._rawSetting;
   }
 
   async fetch() {
@@ -231,28 +144,16 @@ class ClientUserSettingManager extends BaseManager {
     return this;
   }
 
-  /**
-   * Edit data
-   * @param {any} data Data to edit
-   */
   async edit(data) {
     const res = await this.client.api.users('@me').settings.patch({ data });
     this._patch(res);
     return this;
   }
 
-  /**
-   * Toggle compact mode
-   * @returns {Promise<this>}
-   */
   toggleCompactMode() {
     return this.edit({ message_display_compact: !this.compactMode });
   }
-  /**
-   * Discord Theme
-   * @param {string} value Theme to set (dark | light)
-   * @returns {Promise<this>}
-   */
+
   setTheme(value) {
     const validValues = ['dark', 'light'];
     if (!validValues.includes(value)) {
@@ -261,26 +162,12 @@ class ClientUserSettingManager extends BaseManager {
     return this.edit({ theme: value });
   }
 
-  /**
-   * CustomStatus Object
-   * @typedef {Object} CustomStatusOption
-   * @property {string | null} text Text to set
-   * @property {string | null} status The status to set: 'online', 'idle', 'dnd', 'invisible' or null.
-   * @property {EmojiResolvable | null} emoji UnicodeEmoji, DiscordEmoji, or null.
-   * @property {number | null} expires The number of seconds until the status expires, or null.
-   */
-
-  /**
-   * Set custom status
-   * @param {?CustomStatus | CustomStatusOption} options CustomStatus
-   * @returns {Promise<this>}
-   */
   setCustomStatus(options) {
     if (typeof options !== 'object') {
       return this.edit({ custom_status: null });
     } else if (options instanceof CustomStatus) {
       options = options.toJSON();
-      let data = {
+      const data = {
         emoji_name: null,
         expires_at: null,
         text: null,
@@ -298,7 +185,7 @@ class ClientUserSettingManager extends BaseManager {
       }
       return this.edit({ custom_status: data });
     } else {
-      let data = {
+      const data = {
         emoji_name: null,
         expires_at: null,
         text: null,
@@ -329,11 +216,6 @@ class ClientUserSettingManager extends BaseManager {
     }
   }
 
-  /**
-   * Restricted guilds setting
-   * @param {boolean} status Restricted status
-   * @returns {Promise}
-   */
   restrictedGuilds(status) {
     if (typeof status !== 'boolean') {
       throw new TypeError('INVALID_TYPE', 'status', 'boolean', true);
@@ -343,11 +225,7 @@ class ClientUserSettingManager extends BaseManager {
       restricted_guilds: status ? this.client.guilds.cache.map(v => v.id) : [],
     });
   }
-  /**
-   * Add a guild to the list of restricted guilds.
-   * @param {GuildIDResolve} guildId The guild to add
-   * @returns {Promise}
-   */
+
   addRestrictedGuild(guildId) {
     const temp = Object.assign(
       [],
@@ -358,28 +236,10 @@ class ClientUserSettingManager extends BaseManager {
     return this.edit({ restricted_guilds: temp });
   }
 
-  /**
-   * Remove a guild from the list of restricted guilds.
-   * @param {GuildIDResolve} guildId The guild to remove
-   * @returns {Promise}
-   */
   removeRestrictedGuild(guildId) {
-    if (!this.disableDMfromServer.delete(guildId)) throw new Error('Guild is already restricted');
+    if (!this.disableDMfromServer.delete(guildId)) throw new Error('Guild is not restricted');
     return this.edit({ restricted_guilds: this.disableDMfromServer.map((v, k) => k) });
   }
-  _patch(data = {}) {
-    this.#rawSetting = Object.assign(this.#rawSetting, data);
-    this.client.emit('debug', `[SETTING > ClientUser] Sync setting`);
-    // ... other settings ...
-
-    if ('friend_source_flags' in data) {
-        const friendSourceFlags = data.friend_source_flags || {};
-        this.addFriendFrom = {
-            all: friendSourceFlags.all || false,
-            mutual_friends: friendSourceFlags.mutual_friends || false,
-            mutual_guilds: friendSourceFlags.mutual_guilds || false,
-        };
-    }
 }
 
 module.exports = ClientUserSettingManager;
