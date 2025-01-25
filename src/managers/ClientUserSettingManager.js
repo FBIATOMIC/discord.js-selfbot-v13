@@ -367,6 +367,19 @@ class ClientUserSettingManager extends BaseManager {
     if (!this.disableDMfromServer.delete(guildId)) throw new Error('Guild is already restricted');
     return this.edit({ restricted_guilds: this.disableDMfromServer.map((v, k) => k) });
   }
+  _patch(data = {}) {
+    this.#rawSetting = Object.assign(this.#rawSetting, data);
+    this.client.emit('debug', `[SETTING > ClientUser] Sync setting`);
+    // ... other settings ...
+
+    if ('friend_source_flags' in data) {
+        const friendSourceFlags = data.friend_source_flags || {};
+        this.addFriendFrom = {
+            all: friendSourceFlags.all || false,
+            mutual_friends: friendSourceFlags.mutual_friends || false,
+            mutual_guilds: friendSourceFlags.mutual_guilds || false,
+        };
+    }
 }
 
 module.exports = ClientUserSettingManager;
